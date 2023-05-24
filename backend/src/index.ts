@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import mysql from 'mysql2';
 import bodyParser from "body-parser";
+import cors from 'cors';
+import cron from 'node-cron';
 
 const app = express();
 const conn = mysql.createConnection({
@@ -10,12 +12,20 @@ const conn = mysql.createConnection({
     database: "bookings"
 })
 
+app.use(cors());
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
 app.get("/", (req, res) => {});
 
 const useId = 1;
+
+/* CRON */
+
+cron.schedule('* * * * *', () => {
+    /* CHECK TIMEOUT */
+    console.log('running a task every minute');
+});
 
 /* AUTH */
 app.post("/auth/register", (req, resp) => {
@@ -46,11 +56,25 @@ app.post("/auth/login", (req, resp) => {
 })
 
 /* ROOM MANAGEMENTS */
+
 app.get("/get", (req, resp) => {
     const owner = useId;
 
     try{
-        conn.query("SELECT * FROM rooms WHERE owner = ?", [owner], (err, results) =>{
+        conn.query("SELECT * FROM rooms WHERE owner = ? AND deleted = 0", [owner], (err, results) =>{
+            return resp.json(!err ? results:"[]");
+        })
+    }catch(error){
+        return resp.send("error")
+    }
+})
+
+app.get("/get/:id", (req, resp) => {
+    const owner = useId;
+    const id = req.params.id;
+
+    try{
+        conn.query("SELECT * FROM rooms WHERE owner = ? AND id = ? AND deleted = 0", [owner, id], (err, results) =>{
             return resp.json(!err ? results:"[]");
         })
     }catch(error){
@@ -85,8 +109,8 @@ app.post("/update", (req, resp) => {
     }
 })
 
-app.post("/delete", (req, resp) => {
-    const id = req.body.id;
+app.post("/delete/:id", (req, resp) => {
+    const id = req.params.id;
     const owner = useId;
 
     try{
@@ -106,7 +130,18 @@ app.post("/room/time/create", (req, resp) => {
 
     try{
         conn.query("INSERT INTO times (room, start, end) VALUES (?, ?, ?)", [room, start, end], (err, results) =>{
-            return resp.send(!err ? "success":"error"+err);
+            if (!err){
+                return resp.json({
+                    status: "success",
+                    id: results.insertId
+                })
+            }else{
+                return resp.json({
+                    status: "error",
+                    data: err
+                })
+            }
+            /* return resp.send(!err ? "success":"error"+err); */
         })
     }catch(error){
         return resp.send("error")
@@ -133,6 +168,18 @@ app.post("/room/time/delete", (req, resp) => {
     try{
         conn.query("UPDATE times SET deleted = 1 WHERE id = ? ", [id], (err, results) => {
             return resp.send(!err ? "success":"error");
+        })
+    }catch(error){
+        return resp.send("error")
+    }
+})
+
+app.get("/room/get/:room", (req, resp) => {
+    const id = req.params.room;
+
+    try{
+        conn.query("SELECT * FROM times WHERE room = ? AND deleted = 0 ", [id], (err, results) =>{
+            return resp.json(!err ? results:"[]");
         })
     }catch(error){
         return resp.send("error")

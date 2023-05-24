@@ -1,10 +1,22 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+
+
+import Booking from './pages/Booking.tsx'
+import Home from './pages/Home.tsx'
+
+import Rooms  from './pages/Rooms/Index.tsx';
+import Room  from './pages/Rooms/Detail.tsx';
+
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <BrowserRouter>
+      <Routes>
+          <Route path='/' element={<Home/>}></Route>
+          <Route path='/booking' element={<Booking/>}></Route>
+          <Route path='/rooms' element={<Rooms/>}></Route>
+          <Route path='/rooms/:id' element={<Room/>}></Route>
+      </Routes>
+  </BrowserRouter>,
 )
