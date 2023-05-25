@@ -3,6 +3,7 @@ import mysql from 'mysql2';
 import bodyParser from "body-parser";
 import cors from 'cors';
 import cron from 'node-cron';
+import useMessage from "./hooks/useMessage";
 
 const app = express();
 const conn = mysql.createConnection({
@@ -55,13 +56,90 @@ app.post("/auth/login", (req, resp) => {
     }
 })
 
+/* APPS MAGEMENTS */
+
+app.get("/getApps",(req, resp) =>{
+    const id = useId;
+
+    try{
+        conn.query("SELECT * FROM apps WHERE owner = ? AND deleted = 0", [id], (err, results) =>{
+            let message = new useMessage();
+
+            if (!err){
+                message.set(true);
+                message.add("data", results);
+            }else{
+                resp.send("ERROR :"+ !err + id)
+                return resp.sendStatus(500)
+            }
+
+            return resp.json(message.get())
+        })
+    }catch(error){
+        return resp.sendStatus(500)
+    }
+})
+
+app.post("/app/create", (req, resp) => {
+    const id = useId;
+    const name = req.body.appName
+
+    try{
+        try{
+            conn.query("INSERT INTO apps (owner, name) VALUES (?, ?)", [id, name], (err, results) =>{
+                let message = new useMessage();
+
+                if (!err){
+                    message.set(true);
+                    message.add("data", results);
+                }else{
+                    resp.send(err)
+                    return resp.sendStatus(500)
+                }
+    
+                return resp.json(message.get())
+            })
+        }catch(error){
+            return resp.send("error")
+        }
+    }catch(error){
+        return resp.sendStatus(500)
+    }
+})
+
 /* ROOM MANAGEMENTS */
 
-app.get("/get", (req, resp) => {
-    const owner = useId;
+app.get("/u/:appId/getRooms", (req, resp) => {
+    const params = {
+        appId: req.params.appId
+    }
 
     try{
-        conn.query("SELECT * FROM rooms WHERE owner = ? AND deleted = 0", [owner], (err, results) =>{
+        conn.query("SELECT * FROM rooms WHERE app = ? AND deleted = 0", [params.appId], (err, results) =>{
+            let message = new useMessage();
+
+            if (!err){
+                message.set(true);
+                message.add("data", results);
+            }else{
+                return resp.sendStatus(500)
+            }
+
+            return resp.json(message.get())
+        })
+    }catch(error){
+        return resp.sendStatus(500)
+    }
+})
+
+app.get("/u/:appId/getRooms/:roomId", (req, resp) => {
+    const params = {
+        appId: req.params.appId,
+        roomId : req.params.roomId
+    }
+
+    try{
+        conn.query("SELECT * FROM rooms WHERE app = ? AND id = ? AND deleted = 0", [params.appId, params.roomId], (err, results) =>{
             return resp.json(!err ? results:"[]");
         })
     }catch(error){
@@ -69,25 +147,12 @@ app.get("/get", (req, resp) => {
     }
 })
 
-app.get("/get/:id", (req, resp) => {
-    const owner = useId;
-    const id = req.params.id;
-
-    try{
-        conn.query("SELECT * FROM rooms WHERE owner = ? AND id = ? AND deleted = 0", [owner, id], (err, results) =>{
-            return resp.json(!err ? results:"[]");
-        })
-    }catch(error){
-        return resp.send("error")
-    }
-})
-
-app.post("/create", (req, resp) => {
-    const owner = useId;
+app.post("/room/create", (req, resp) => {
+    const app = req.body.app;
     const label = req.body.label;
 
     try{
-        conn.query("INSERT INTO rooms (owner, label) VALUES (?, ?)", [owner, label], (err, results) =>{
+        conn.query("INSERT INTO rooms (app, label) VALUES (?, ?)", [app, label], (err, results) =>{
             return resp.send(!err ? "success":"error");
         })
     }catch(error){
@@ -167,7 +232,15 @@ app.post("/room/time/delete", (req, resp) => {
 
     try{
         conn.query("UPDATE times SET deleted = 1 WHERE id = ? ", [id], (err, results) => {
-            return resp.send(!err ? "success":"error");
+            const message = new useMessage(false);
+
+            if (!err) {
+                message.set(true)
+            }
+
+            return resp.json(message.get())
+
+           /*  return resp.send(!err ? "success":"error"); */
         })
     }catch(error){
         return resp.send("error")
@@ -187,8 +260,6 @@ app.get("/room/get/:room", (req, resp) => {
 })
 
 /* ROOM BOOKING */
-app.post("/room/booking", (req, resp) => {
-    
-})
+
 
 app.listen(3000, () => console.log("SERVER IS RUNNING."))

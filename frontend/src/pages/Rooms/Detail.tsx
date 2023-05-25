@@ -51,10 +51,8 @@ const Main = () => {
     const navigate = useNavigate();
 
     const init = () => {
-        axios.get(`http://localhost:3000/get/${roomId}`).then((resp) => {
+        axios.get(`http://localhost:3000/u/${1}/getRooms/${roomId}`).then((resp) => {
             if (!resp.data[0]){
-                alert("ไม่พบข้อมูล")
-                navigate("/rooms")
                 return
             } 
             
@@ -78,9 +76,6 @@ const Main = () => {
         const secStart : number= convertToSeconds(startTime );
         const secEnd  : number= convertToSeconds(endTime );
 
-
-        console.log(startTime, endTime, secStart, secEnd);
-        
         if (secStart >= secEnd)return alert("กรุณาป้อนเวลาให้ถูกต้อง");
 
 
@@ -116,6 +111,16 @@ const Main = () => {
 
         setStart(convertToTimeString(newStart))
         setEnd(convertToTimeString(newEnd))
+    }
+
+    const deleteTime = (id : number) =>{
+        axios.post("http://localhost:3000/room/time/delete", {
+            id: id
+        }).then((resp) =>{
+            if (resp.status == 200 && resp.data.status == "success") {
+                alert("สำเร็จ!");
+            }
+        })
     }
 
     /* BUTTONS */
@@ -159,7 +164,7 @@ const Main = () => {
                                     <td>{(time.start).substring(0, (time.start).length - 3)}</td>
                                     <td>{(time.end).substring(0, (time.end).length - 3)}</td>
                                     <td>
-                                        <button>DELETE</button>
+                                        <button onClick={() => deleteTime(time.id)}>DELETE</button>
                                         {AddMoreButton(time.start, time.end, index, times.length)}
                                     </td>
                                 </tr>

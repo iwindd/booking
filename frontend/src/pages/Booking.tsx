@@ -15,14 +15,14 @@ function Main() {
         if (!confirmation) return;   
     }
 
-    useEffect(() => {
-        axios.get("http://localhost:3000/get").then((resp) => setRooms(resp.data))
+/*     useEffect(() => {
+        axios.get("http://localhost:3000/getApps").then((resp) => setRooms(resp.data))
     }, []);
 
     useEffect(() => {
         axios.get(`http://localhost:3000/room/get/${room}`).then((resp) => setTimes(resp.data))
     }, [room])
-
+ */
     return (
         <>
             <form onSubmit={Booking}>

@@ -1,16 +1,20 @@
 import {useState, useEffect} from 'react'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { room } from '../../typings/room';
 
 
 
 const Main = () => {
-    const [rooms, setRooms] = useState<room[]>([]);
+    const appId : string | undefined = useParams().appId
     const navigate = useNavigate();
 
+    const [rooms, setRooms] = useState<room[]>([]);
+
     useEffect(() => {
-        axios.get("http://localhost:3000/get").then((resp) => setRooms(resp.data))
+        axios.get(`http://localhost:3000/u/${appId}/getRooms`).then((resp) => {
+            if (resp.status == 200 ) setRooms(resp.data.data);
+        })
     }, []);
 
     const deleteRoom = (id : number) => {
@@ -32,15 +36,16 @@ const Main = () => {
     }
 
     const editRoom = (id : number) => {
-        return navigate("/rooms/"+id);
+        return navigate(`/rooms/${appId}/${id}`);
     }
 
     const addRoom = () => {
         const labelPrompt : string | null = prompt("ป้อนชื่อห้อง");
         if (!labelPrompt) return;
 
-        axios.post("http://localhost:3000/create", {
-            label: labelPrompt
+        axios.post("http://localhost:3000/room/create", {
+            label: labelPrompt,
+            app: appId
         }).then((resp) => {
             if (resp.status == 200 && resp.data == "success"){
                 alert("สำเร็จ");
