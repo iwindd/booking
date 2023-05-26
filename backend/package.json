@@ -38,9 +38,7 @@
 
   "scripts": {
 
-    "dev": "ts-node-dev --respawn --transpile-only --exit-child --watch src src/index.ts",
-
-    "devLine": "ts-node-dev --respawn --transpile-only --exit-child --watch src src/line.ts"
+    "dev": "ts-node-dev --respawn --transpile-only --exit-child --watch src src/app.ts"
 
   },
 

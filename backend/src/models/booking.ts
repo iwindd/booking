@@ -1,6 +1,7 @@
 import { formatTime, mergeDateAndTime } from '../utils/date';
 import conn from './connection';
 import appLib from '../models/app';
+import member from './member';
 
 export interface booking{
     id: number,
@@ -47,7 +48,8 @@ export default {
                 times.start,
                 times.end,
                 rooms.label,
-                rooms.app
+                rooms.app,
+                members.notification
             FROM
                 bookings
             LEFT JOIN rooms ON 
@@ -55,6 +57,8 @@ export default {
             LEFT JOIN times ON 
                 bookings.time   = times.id AND 
                 bookings.room   = times.room
+            LEFT JOIN members ON 
+                bookings.booking = members.userid
             WHERE 
                 bookings.status  = 0 AND
                 bookings.date <= ?
@@ -75,8 +79,7 @@ export default {
             if (success.length <= 0) return;
 
             const placeholders = success.map(() => '?').join(',');
-            const query = `UPDATE bookings SET status = 1 WHERE id IN (${placeholders})`;
-            conn.execute(query, success).then((result) => {
+            conn.execute(`UPDATE bookings SET status = 1 WHERE id IN (${placeholders})`, success).then(async (result) => {
                 const data = bookings.filter((booking : any) => success.includes(booking.id));
 
                 data.map((booking : any) => {
@@ -84,13 +87,9 @@ export default {
 
                     if (!app) return;
                     if (!app.client) return;
+                    const msg : string = `#${booking.id} การจองห้อง ${booking.label} \nเวลา ${formatTime(booking.start)} ถึง ${formatTime(booking.end)}\nของคุณได้สิ้นสุดลงแล้ว!`
 
-                    app.client.pushMessage(booking.booking, [
-                        {
-                            "type":"text",
-                            "text":`#${booking.id} การจองห้อง ${booking.label} \nเวลา ${formatTime(booking.start)} ถึง ${formatTime(booking.end)}\nของคุณได้สิ้นสุดลงแล้ว!`
-                        }
-                    ])
+                    member.FullNotification(booking.notification, booking.booking, msg, app.client)
                 })
             });
         })

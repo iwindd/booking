@@ -109,7 +109,11 @@ export const main: postback = {
                                     "data": {
                                         room: data.roomId,
                                         date: data.date,
-                                        time: data.timeId
+                                        time: data.timeId,
+
+                                        label: data.label,
+                                        start: data.start,
+                                        end: data.end
                                     }
                                 }),
                             },
