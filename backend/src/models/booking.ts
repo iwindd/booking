@@ -39,7 +39,6 @@ export default {
     cron: () =>{
         const currentDate = new Date().toISOString().split('T')[0];
 
-        console.log(currentDate);
         conn.execute(`
             SELECT 
                 bookings.id,

@@ -1,3 +1,4 @@
+import { getYMDdate } from '../utils/date';
 import conn from './connection';
 
 export interface time{
@@ -5,22 +6,50 @@ export interface time{
     room : number,
     start : string,
     end : string,
-    booking : string | null
+    users: {
+        userid: string,
+        label: string
+    }
 }
 
 export default {
-    getTimes:  (room : number)  => {
+    getTimes:  (room : number, date : String)  => {
+       
         return new Promise(async (resolve, reject)  => {
-            conn.execute("SELECT * FROM times WHERE room = ? AND deleted = 0", [room]).then(([rows] : any) => {
+            conn.execute(`
+                    SELECT 
+                        times.id,
+                        times.room,
+                        times.start,
+                        times.end,
+                        members.userid,
+                        members.label
+                    FROM 
+                        times 
+                    LEFT JOIN bookings ON
+                        times.id = bookings.time AND
+                        times.room = bookings.room AND
+                        bookings.date = ? AND
+                        bookings.status = 0 
+                    LEFT JOIN members ON 
+                        members.userid = bookings.booking 
+                    WHERE 
+                        times.room = ? AND 
+                        times.deleted = 0`
+            , [date, room]).then(([rows] : any) => {
                 const times : time[] = [];
+                
 
                 rows.map((data : any) => {
                     times.push({
                         id : data.id,
                         room : data.room,
-                        start :  (data.start).substring(0, (data.start).length - 3),
-                        end : (data.end).substring(0, (data.end).length - 3),
-                        booking : data.booking
+                        start :  data.start,
+                        end : data.end,
+                        users: {
+                            userid: data.userid,
+                            label: data.label
+                        }
                     })
                 })
 

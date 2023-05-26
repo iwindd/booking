@@ -10,15 +10,54 @@ export interface room{
 export default {
     getRooms:  (app : number)  => {
         return new Promise(async (resolve, reject)  => {
-            conn.execute("SELECT * FROM rooms WHERE app = ? AND deleted = 0", [app]).then(([rows] : any) => {
+            const date = new Date().toISOString().split('T')[0]
+
+            conn.execute(`
+                SELECT 
+                    rooms.id,
+                    rooms.app,
+                    rooms.label,
+                    COALESCE(b.count, 0) AS bookings,
+                    COALESCE(t.count, 0) AS times
+                FROM 
+                    rooms
+                LEFT JOIN 
+                    (
+                        SELECT 
+                            room, 
+                            COUNT(id) AS count
+                        FROM 
+                            bookings
+                        WHERE 
+                            status = 0 AND 
+                            date = ?
+                        GROUP BY room
+                    ) b ON 
+                        rooms.id = b.room
+                LEFT JOIN 
+                    (
+                        SELECT 
+                            room, 
+                            COUNT(id) AS count
+                        FROM 
+                            times
+                        WHERE 
+                            deleted = 0
+                        GROUP BY room
+                    ) t ON 
+                        rooms.id = t.room
+                WHERE 
+                    rooms.app = ? AND 
+                    rooms.deleted = 0;
+                `, [date, app]).then(([rows] : any) => {
                 const rooms : room[] = [];
 
                 rows.map((data : any) => {
                     rooms.push({
                         id: data.id,
                         label: data.label,
-                        all: 0,
-                        canUse: 0
+                        all: data.times,
+                        canUse: data.times-data.bookings,
                     })
                 })
 

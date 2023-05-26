@@ -13,6 +13,8 @@ export const main : command = {
 
         roomObj.getRooms(appData.id).then((rooms : any) => {
             const quickReply : any = [];
+            const today = getYMDdate(new Date());
+
             const contents : any =  {
                 "type": "bubble",
                 "body": {
@@ -29,8 +31,6 @@ export const main : command = {
                     ]
                 }
             }
-    
-            const today = getYMDdate(new Date());
 
             rooms.map((room : room) => {
                (contents.body.contents).push({
@@ -52,7 +52,7 @@ export const main : command = {
                                 },
                                 {
                                     "type": "text",
-                                    "text": `ทั้งหมด : ${room.all} / ว่าง : ${room.canUse}`,
+                                    "text": `ว่าง : ${room.canUse}/${room.all}`,
                                     "size": "sm",
                                     "align": "end",
                                     "color": "#aaaaaa"
@@ -64,7 +64,8 @@ export const main : command = {
                                 "label": "วันที่จอง",
                                 "data": JSON.stringify({
                                     "use": "rooms",
-                                    "roomId": room.id
+                                    "roomId": room.id,
+                                    "label": room.label
                                 }),
                                 "initial": today,
                                 "min": today,
@@ -81,7 +82,8 @@ export const main : command = {
                         "label": `${room.label}`,
                         "data": JSON.stringify({
                             "use": "rooms",
-                            "roomId": room.id
+                            "roomId": room.id,
+                            "label": room.label
                         }),
                         "initial": today,
                         "min": today,

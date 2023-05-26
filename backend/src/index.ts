@@ -4,7 +4,9 @@ import cors from 'cors';
 import cron from 'node-cron';
 import lineEvent from './api/line';
 import booking from "./models/booking";
+import * as dotenv from 'dotenv'
 
+const env : any = dotenv.config().parsed
 const app = express();
 
 app.use(cors());
@@ -37,4 +39,4 @@ app.post("/api/:appId/webhook", async(req, res) =>{
 app.get("/", (req, res) => {});
 
 /* SERV */
-app.listen(3000, () => console.log("SERVER IS RUNNING."))
+app.listen(env.SERVER_PORT, () => console.log("SERVER IS RUNNING."))

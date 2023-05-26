@@ -1,8 +1,9 @@
 import { postback } from "../typings";
 import { convert, hasThaiNumerals } from '../../utils/dateThai';
-import { isDateMinToday } from "../../utils/date";
-
+import { formatTime, isDateMinToday, mergeDateAndTime } from "../../utils/date";
 import timeObj, {time} from '../../models/times';
+import { usePostbackSession } from "../main";
+import member from "../../models/member";
 
 export const main : postback = {
     name: "rooms",
@@ -19,7 +20,7 @@ export const main : postback = {
 
         if (!isDateMinToday(date)) return;
   
-        timeObj.getTimes(data.roomId).then((times : any) => {
+        timeObj.getTimes(data.roomId, date).then((times : any) => {
             const quickReply : any = [
                 {
                     "type": "action", 
@@ -30,6 +31,7 @@ export const main : postback = {
                     }
                 }
             ];
+
             const contents : any =  {
                 "type": "bubble",
                 "body": {
@@ -39,7 +41,7 @@ export const main : postback = {
                     "contents": [
                         {
                             "type": "text",
-                            "text": "< ห้องคอม 3",
+                            "text": `< ${data.label}`,
                             "size": "xl",
                             "weight": "bold",
                             "action": {
@@ -59,12 +61,41 @@ export const main : postback = {
             }
             let roomId = data.roomId;
     
-            times.map((time : time, index : number) => {
+            times.map( (time : time, index : number) => {
                 let timeId = time.id;
-                let start = time.start;
-                let end = time.end;
-                let i = index+1;
+                let start = formatTime(time.start);
+                let end = formatTime(time.end);
+
+                const options : any = [];
+                const action : any = {
+                    "type": "postback",
+                    "label": `${start}-${end}`,
+                    "data": JSON.stringify({
+                        "use": "booking_dialogs",
+                        "session": usePostbackSession(-1, -1, 5000),
+                        "date": date,
+                        "start": start,
+                        "end": end,
+                        "timeId": timeId,
+                        "roomId": roomId,
+                        "label": (data.label)
+                    }),
+                };
+
+                const endDate = mergeDateAndTime(date, time.end);
+                const now = new Date();
+
+                const isOver    = (endDate < now) ? true:false;
+                const isAlready = (!time.users.userid) ? false:true;
+
+
+                const colorHeader   = isAlready ? "#ff8c00":(isOver ? "#f7686d":undefined)
+                const colorStatus   = isAlready ? "#ff8c00":(isOver ? "#f7686d":"#aaaaaa")
+                const status        = isAlready ? (time.users.label || "ไม่ทราบชื่อ")  :(isOver ? "เกินเวลา":"ว่าง")
                 
+
+                if (!isOver && !isAlready)  options['action'] = action;
+
                (contents.body.contents[1].contents).push({
                     "type": "box",
                     "layout": "baseline",
@@ -74,32 +105,25 @@ export const main : postback = {
                             "text": `${start} - ${end}`,
                             "weight": "bold",
                             "margin": "sm",
+                            "color": colorHeader,
                             "flex": 15
                         },
                         {
                             "type": "text",
-                            "text": "ว่าง",
+                            "text": status,
                             "size": "sm",
                             "align": "end",
-                            "color": "#aaaaaa",
+                            "color": colorStatus,
                             "flex": 15
                         }
                     ],
-                    "action": {
-                        "type": "message",
-                        "text": `.booking ${roomId} ${date} ${timeId}`,
-                        "label": `.booking ${roomId} ${date} ${timeId}`
-                    },
-                    "margin": "15px"
+                    "margin": "15px",
+                    ...options
                 }, {"type": "separator"})
 
                 quickReply.push({
                     "type": "action", 
-                    "action": {
-                      "type": "message",
-                      "label": `${start}-${end}`,
-                      "text": `.booking ${roomId} ${date} ${timeId}`
-                    }
+                    "action": action
                 });
             })
     

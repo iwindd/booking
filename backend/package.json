@@ -30,7 +30,9 @@
 
     "node-cron": "^3.0.2",
 
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+
+    "uuidv4": "^6.2.13"
 
   },
 
