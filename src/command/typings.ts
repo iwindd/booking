@@ -1,1 +1,0 @@
-export type permission = "guest" | "member" | "admin";
