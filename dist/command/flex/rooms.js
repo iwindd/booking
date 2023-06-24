@@ -1,10 +1,9 @@
-import { FlexContainer } from "@line/bot-sdk"
-import { usePostbackSession } from "../main"
-import { getYMDdate } from "../../utils/date";
-
-export const RoomFlexMessage = (name: string, postbackData: Object): FlexContainer => {
-    const today = getYMDdate(new Date());
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RoomFlexMessage = void 0;
+const date_1 = require("../../utils/date");
+const RoomFlexMessage = (name, postbackData) => {
+    const today = (0, date_1.getYMDdate)(new Date());
     return {
         "type": "bubble",
         "body": {
@@ -47,5 +46,6 @@ export const RoomFlexMessage = (name: string, postbackData: Object): FlexContain
             ],
             "flex": 0
         }
-    }
-}
+    };
+};
+exports.RoomFlexMessage = RoomFlexMessage;

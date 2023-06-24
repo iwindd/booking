@@ -2,14 +2,16 @@ import { postback } from "../typings";
 import { convert, hasThaiNumerals } from '../../utils/dateThai';
 import { formatTime, isDateMinToday, mergeDateAndTime } from "../../utils/date";
 import { flex } from "../../utils/flex";
-import { usePostbackSession } from "../main";
 import moment from "moment";
+import { WebhookEvent } from "@line/bot-sdk";
+import { App } from "../../models/app";
 
-export const main: postback = {
+module.exports = {
     name: "room",
-    execute: (event, client, app) => {
+    execute: (event : WebhookEvent | any, app : App) => {
         const data = JSON.parse(event.postback.data);
         const params = event.postback.params;
+        const client = app.client;
 
         const date = hasThaiNumerals(params.date) ? convert(params.date) : params.date;
         if (!isDateMinToday(date)) return;
@@ -18,59 +20,45 @@ export const main: postback = {
         if (!room) return;
 
         const message = new flex();
-        message.setTitle("เวลาทั้งหมด")
+        message.setTitle("ตารางการจองห้อง");
+        message.setTitleAlign("center");
 
-        room.times.map((time) => {
-            const hasBooking = app.isRoomBooking(room.id, time.id, date);
-            const textDate = (new Date(date)).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+        app.getBookings().map((booking) => {
+            const bookingDate = moment(booking.date).format('YYYY-MM-DD');
+            const initDate   =  moment(date).format('YYYY-MM-DD')
+            if (bookingDate != initDate) return;
 
-            const momentEnd = moment(`${date} ${time.end}`);
-            const momentCur = moment();
-            const overtime     = !momentEnd.isAfter(momentCur);
+            const member = app.getMember(booking.booking);
+            if (!member) return;
 
-            if (!hasBooking && !overtime){
-                message.add({
-                    title: `${formatTime(time.start)} - ${formatTime(time.end)}`,
-                    metadata: [
-                        {label: "ห้อง", value: room.label, style: "list"},
-                        {label: "วันที่", value: textDate, style: "list"},
-                        {label: "สถานะ", value: "ว่าง", style: "list"},
-                        {label: "จอง", style: "button", action: {
-                            type: "postback",
-                            data: JSON.stringify({
-                                "use": "booking_dialogs",
-                                "session": usePostbackSession(-1, 1, 5000),
-                                "data": {
-                                    room: data.room,
-                                    time: time.id,
-                                    date: date
-                                }
-                            }),
-                        }},
-                    ]
-                })
-            }else{
-                if (hasBooking){
-                    const bookingBy = app.getMember(hasBooking.booking);
-                    message.add({
-                        title: `${formatTime(time.start)} - ${formatTime(time.end)}`,
-                        metadata: [
-                            {label: "ห้อง", value: room.label, style: "list"},
-                            {label: "วันที่", value: textDate, style: "list"},
-                            {label: "สถานะ", value: `ถูกจองโดย : ${bookingBy?.label}`, style: "list"},
-                        ]
-                    })
-                }else{
-                    message.add({
-                        title: `${formatTime(time.start)} - ${formatTime(time.end)}`,
-                        metadata: [
-                            {label: "ห้อง", value: room.label, style: "list"},
-                            {label: "วันที่", value: textDate, style: "list"},
-                            {label: "สถานะ", value: `เกินเวลา`, style: "list"},
-                        ]
-                    })
-                }
-            } 
+            message.add({
+                title: `${formatTime(booking.time.start)} - ${formatTime(booking.time.end)}`,
+                metadata: [
+                    {label: "ผู้จอง", value: member.label, style: "list"},
+                ]
+            })
+        })
+
+        message.add({
+            title: "การจองห้อง",
+            align: "center",
+            metadata: [
+                {
+                    label: "จองห้อง", 
+                    style: "button", 
+                    action: {
+                        label: "เวลาเริ่มต้น", 
+                        type: "datetimepicker",
+                        mode: "time",
+                        data: JSON.stringify({
+                            use: "booking",
+                            type: "init", 
+                            room: data.room,
+                            date: date,
+                        })
+                    }
+                },
+            ]
         })
 
         client.replyMessage(event.replyToken, message.render())

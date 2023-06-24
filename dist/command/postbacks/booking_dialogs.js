@@ -1,19 +1,21 @@
-import { formatTime, mergeDateAndTime } from "../../utils/date";
-import { usePostbackSession } from "../main";
-import { postback } from "../typings";
-
-export const main: postback = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.main = void 0;
+const date_1 = require("../../utils/date");
+const main_1 = require("../main");
+exports.main = {
     name: "booking_dialogs",
     execute: (event, client, app) => {
         const data = JSON.parse(event.postback.data);
-
         const room = app.getRoom(data.data.room);
-        if (!room) return;
+        if (!room)
+            return;
         const time = room.times.find((time) => time.id == data.data.time);
-        if (!time) return;
-        const date = mergeDateAndTime(data.data.date, time.start);
-        if (!date) return;
-
+        if (!time)
+            return;
+        const date = (0, date_1.mergeDateAndTime)(data.data.date, time.start);
+        if (!date)
+            return;
         client.replyMessage(event.replyToken, {
             type: "flex",
             altText: "ยืนยันการจองห้อง",
@@ -83,7 +85,7 @@ export const main: postback = {
                                         },
                                         {
                                             "type": "text",
-                                            "text": `${formatTime(time.start)} - ${formatTime(time.end)}`,
+                                            "text": `${(0, date_1.formatTime)(time.start)} - ${(0, date_1.formatTime)(time.end)}`,
                                             "size": "sm",
                                             "align": "end",
                                             "color": "#aaaaaa"
@@ -109,7 +111,7 @@ export const main: postback = {
                                 "label": "ยืนยัน",
                                 "data": JSON.stringify({
                                     "use": "booking",
-                                    "session": usePostbackSession(5*(60*1000), 1),
+                                    "session": (0, main_1.usePostbackSession)(5 * (60 * 1000), 1),
                                     "data": {
                                         room: room.id,
                                         time: time.id,
@@ -122,6 +124,6 @@ export const main: postback = {
                     ]
                 }
             }
-        })
+        });
     }
-}
+};

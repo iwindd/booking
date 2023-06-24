@@ -17,27 +17,25 @@ export default {
     cron: () => {
         const momentCur = moment();
 
+
         conn.execute(`
-            SELECT 
+            SELECT
                 bookings.id,
                 bookings.date,
                 bookings.booking,
-                times.start,
-                times.end,
-                rooms.label,
+                bookings.start,
+                bookings.end,
                 rooms.app,
+                rooms.label,
                 members.notification
             FROM
                 bookings
-            LEFT JOIN rooms ON 
+            LEFT JOIN rooms ON
                 bookings.room = rooms.id
-            LEFT JOIN times ON 
-                bookings.time   = times.id AND 
-                bookings.room   = times.room
-            LEFT JOIN members ON 
+            LEFT JOIN members ON
                 bookings.booking = members.userid
-            WHERE 
-                bookings.status  = 0 AND
+            WHERE
+                bookings.status = 0 AND
                 bookings.date <= ?
         `, [momentCur.format("YYYY-MM-DD")]).then(([bookings]: any) => {
             const success : number[] = [];
@@ -59,10 +57,10 @@ export default {
                 const app       = apps.find(app => app.id == booking.app);
 
                 if (app) app.setBooking(booking.id, "status", 1);
-                if (isEnd) success.push(booking.id);
+                if (isEnd) success.push(booking.id); 
             })
 
-            if (success.length <= 0) return;
+           if (success.length <= 0) return;
             const placeholders = success.map(() => '?').join(',');
             conn.execute(`UPDATE bookings SET status = 1 WHERE id IN (${placeholders})`, success).then(async (result) => {
                 const data = bookings.filter((booking : any) => success.includes(booking.id));
@@ -73,11 +71,15 @@ export default {
 
                     if (!app) return;
                     if (!app.ready()) return;
-                    const msg : string = `การจองห้อง ${booking.label} \nเวลา ${formatTime(booking.start)} ถึง ${formatTime(booking.end)}\nของคุณได้สิ้นสุดลงแล้ว!`
+                    const date = (new Date(booking.date)).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+                    
+
+                    const msg : string = `การจองห้อง ${booking.label}\nวันที่ ${date} \nเวลา ${formatTime(booking.start)} ถึง ${formatTime(booking.end)}\nของคุณได้สิ้นสุดลงแล้ว!`
 
                     member.FullNotification(booking.notification, booking.booking, msg, app.client)
                 })  
-            });
+            }); 
         })
+
     }
 }

@@ -1,7 +1,8 @@
-import { FlexContainer } from "@line/bot-sdk"
-import { usePostbackSession } from "../main"
-
-export const RequestFlexMessage = (name: string, data: string, postbackData : Object) : FlexContainer => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RequestFlexMessage = void 0;
+const main_1 = require("../main");
+const RequestFlexMessage = (name, data, postbackData) => {
     return {
         "type": "bubble",
         "body": {
@@ -60,11 +61,8 @@ export const RequestFlexMessage = (name: string, data: string, postbackData : Ob
                         "label": "ยอมรับ",
                         "data": JSON.stringify({
                             "use": "request",
-                            "session": usePostbackSession(-1, 1, 5000),
-                            "data": {
-                                type: "1",
-                                ...postbackData
-                            }
+                            "session": (0, main_1.usePostbackSession)(-1, 1, 5000),
+                            "data": Object.assign({ type: "1" }, postbackData)
                         }),
                     }
                 },
@@ -77,16 +75,14 @@ export const RequestFlexMessage = (name: string, data: string, postbackData : Ob
                         "label": "ลบ",
                         "data": JSON.stringify({
                             "use": "request",
-                            "session": usePostbackSession(-1, 1, 5000),
-                            "data": {
-                                type: "0",
-                                ...postbackData
-                            }
+                            "session": (0, main_1.usePostbackSession)(-1, 1, 5000),
+                            "data": Object.assign({ type: "0" }, postbackData)
                         }),
                     }
                 }
             ],
             "flex": 0
         }
-    }
-}
+    };
+};
+exports.RequestFlexMessage = RequestFlexMessage;

@@ -1,6 +1,8 @@
+import moment from "moment";
 import { formatTime, getYMDdate } from "../utils/date";
 import conn from "./connection";
 import { Client, Message } from '@line/bot-sdk';
+import { permission } from "../command/typings";
 
 export interface tokens {
     channelAccessToken: string,
@@ -9,46 +11,89 @@ export interface tokens {
 
 type group = "user" | "admin" | "all";
 
-export interface member {
-    userid: string,
-    label: string,
-    data: string,
-    allowed: number,
-    isAdmin: number
-}
-
 export interface time {
-    id : number,
-    start : string,
-    end : string
+    start: string,
+    end: string
 }
 
 export interface rooms {
-    id : number,
-    label : string,
-    times: time[]
+    id: number,
+    label: string
 }
 
-export interface booking{
+export interface booking {
     id: number,
-    room : number,
-    time: number,
+    room: number,
+    time: time,
     date: string,
     booking: string,
     status: number
 }
 
+export interface MemberData {
+    userid: string;
+    label: string;
+    data: string;
+    allowed: number;
+    isAdmin: number;
+    bookings: booking[];
+}
+
+export class Member {
+    public userid: string;
+    public label: string;
+    public data: string;
+    public allowed: number;
+    public isAdmin: number;
+
+    private bookings: booking[];
+    private lastSuggest?: (lastSuggestDate : Date) => void ;
+    private lastSuggestDate : Date = new Date();
+
+    constructor(Data: MemberData) {
+        this.userid = Data.userid;
+        this.label = Data.label;
+        this.data = Data.data;
+        this.allowed = Data.allowed;
+        this.isAdmin = Data.isAdmin;
+
+        this.bookings = Data.bookings;
+    }
+
+    public getBookings(status?: boolean) {
+        return (status == undefined) ? this.bookings : (status)
+            ? this.bookings.filter((booking) => booking.status == 1) : this.bookings.filter((booking) => booking.status == 0)
+    }
+
+    public setLastSuggest(cb : (lastSuggestDate : Date) => void){
+        this.lastSuggest = cb;
+        this.lastSuggestDate = new Date();
+    }
+
+    public useLastSuggest() {
+        this.lastSuggest ?  this.lastSuggest(this.lastSuggestDate): undefined;
+        this.lastSuggest = undefined;
+    }
+
+    public getPermission(): permission {
+        if (this.isAdmin == 1) return "admin";
+        if (this.allowed == 1) return "member";
+        return "guest";
+    }
+}
+
 export class App {
     public id: number;
     public token: tokens;
-    public client?: Client;
+    public client: Client;
     public lastActive: Date;
 
-    private member: member[] = [];
+    private member: Member[] = [];
     private rooms: rooms[] = [];
-    private bookings : booking[] =[];
-    
+    private bookings: booking[] = [];
+
     private init: boolean = false;
+    private initializing: boolean = false;
     private initCallbacks: (() => void)[] = [];
 
     constructor(id: number, token: tokens) {
@@ -56,61 +101,57 @@ export class App {
         this.token = token;
         this.lastActive = new Date();
 
-        if (!this.token.channelAccessToken) return;
-        if (!this.token.channelSecret) return;
         this.client = new Client(this.token);
 
-        this.initialize();
+      
+
+        this.initialize()
     }
 
-    private async initialize(): Promise<void> {
+    public async initialize(): Promise<void> {
         // Perform initialization logic here
+        if (this.initializing || this.init) return;
+        this.initializing = true;
+        console.log(`[APP] ${this.id} => Initializing...`);
         const initialize = async () => {
             try {
-                const [members]: any = await conn.execute("SELECT userid, label, data, allowed, isAdmin FROM members WHERE app = ?", [this.id]);
-                members.map((data: any) => {
-                    this.member.push({
-                        userid: data.userid,
-                        label: data.label,
-                        data: data.data,
-                        allowed: data.allowed,
-                        isAdmin: data.isAdmin
-                    });
-                });
-
                 const [rooms]: any = await conn.execute("SELECT id, label FROM rooms WHERE app = ? AND deleted = 0", [this.id]);
-                const [times]: any = await conn.execute("SELECT room, start, end, id FROM times WHERE app = ? AND deleted = 0", [this.id]);
-                rooms.map((data : any) => {
-                    const roomsTimes : time[] = [];
-                    const filterTimes = times.filter((time : any) => time.room == data.id);
-
-                    filterTimes.map((time : any) => {
-                        roomsTimes.push({
-                            id: time.id,
-                            start: time.start,
-                            end: time.end
-                        })
-                    })
-
+                rooms.map((data: any) => {
                     this.rooms.push({
                         id: data.id,
-                        label: data.label,
-                        times: roomsTimes
+                        label: data.label
                     })
                 })
 
-                const [bookings]: any = await conn.execute("SELECT id, room, time, date, booking, status FROM bookings WHERE app = ?", [this.id]);
+                const [bookings]: any = await conn.execute("SELECT id, room, start, end, date, booking, status FROM bookings WHERE app = ?", [this.id]);
                 bookings.map((data: any) => {
                     this.bookings.push({
                         id: data.id,
                         room: data.room,
-                        time: data.time,
+                        time: {
+                            start: data.start,
+                            end: data.end
+                        },
                         date: getYMDdate(data.date),
                         booking: data.booking,
                         status: data.status
                     })
                 })
-                
+
+                const [members]: any = await conn.execute("SELECT userid, label, data, allowed, isAdmin FROM members WHERE app = ?", [this.id]);
+                members.map((data: any) => {
+                    const bookings = this.bookings.filter((booking) => booking.booking == data.userid);
+
+                    this.member.push(new Member({
+                        userid: data.userid,
+                        label: data.label,
+                        data: data.data,
+                        allowed: data.allowed,
+                        isAdmin: data.isAdmin,
+                        bookings: bookings
+                    }));
+                });
+
                 for (const callback of this.initCallbacks) {
                     callback();
                 }
@@ -120,7 +161,9 @@ export class App {
         };
 
         await initialize();
+        this.initializing = false;
         this.init = true;
+        console.log(`[APP] ${this.id} => Initialized`);
     }
 
     public async send(group: group, message: Message | Message[]) {
@@ -144,74 +187,105 @@ export class App {
         }
     }
 
-    public getMember(identifier : string) : member | undefined{
+    public getMember(identifier: string): Member | undefined {
         return this.member.find(member => member.userid == identifier);
     }
 
-    public getMembers(): member[] {
+    public getMembers(): Member[] {
         return this.member
     }
 
-    public getRooms(): rooms[]{
+    public getRooms(): rooms[] {
         return this.rooms
     }
 
-    public setBooking(id : number, attribute : string, value : any) {
-        this.bookings.forEach((booking : any) => {
-            if (booking.hasOwnProperty(attribute) && booking.id == id){
+    public setBooking(id: number, attribute: string, value: any) {
+        this.bookings.forEach((booking: any) => {
+            if (booking.hasOwnProperty(attribute) && booking.id == id) {
                 booking[attribute] = value;
                 return true
             }
         });
     }
 
-    public getBookings(): booking[]{
+    public getBookings(): booking[] {
         return this.bookings
     }
 
-    public getRoom(id : number): rooms | undefined{
+    public getRoom(id: number): rooms | undefined {
         return this.rooms.find(room => room.id == id);
     }
 
-    public isRoomBooking(roomId : number, timeId: number, date: string){
-        return this.bookings.find(booking => booking.room == roomId && booking.time == timeId && booking.date == date);
+    public isRoomBooking(roomId: number, time: time, date: string) {
+        return this.bookings.find((booking) => {
+            if (booking.room == roomId && booking.status == 0) {
+                const bookingStart = moment(`${booking.date} ${booking.time.start}`);
+                const bookingEnd = moment(`${booking.date} ${booking.time.end}`);
+
+                const timeStart = moment(`${date} ${time.start}`);
+                const timeEnd = moment(`${date} ${time.end}`);
+
+                const validate: boolean[] = [
+                    timeStart.isBetween(bookingStart, bookingEnd),
+                    timeEnd.isBetween(bookingStart, bookingEnd),
+                    bookingStart.isBetween(timeStart, timeEnd),
+                    bookingEnd.isBetween(timeStart, timeEnd),
+                    timeStart.isSame(bookingStart),
+                    timeEnd.isSame(bookingEnd)
+                ]
+
+                if (validate.includes(true)) {
+                    return true;
+                }
+            }
+        })
+
     }
 
-    public booking(roomId : number, timeId : number, date : string, identifier : string){
+    public booking(roomId: number, start: string, finish: string, date: string, identifier: string) {
         const member = this.getMember(identifier);
-        const room   = this.getRoom(roomId);
-        
+        const room = this.getRoom(roomId);
+
         if (!room) return;
-        const time   = room.times.find(time => time.id == timeId);
-        if (!time) return;
         if (!member) return;
         if (!this.ready()) return;
         if (!this.isMemberAllowed(identifier)) return;
-        
-        const replyText = (text : string) => this.client?.pushMessage(member.userid, {type: "text", text: text});
-        const isBooking = this.isRoomBooking(roomId, timeId, date);
-        const key       = `${date}-${this.id}-${room.id}-${time.id}`;    
+        const replyText = (text: string) => this.client?.pushMessage(member.userid, { type: "text", text: text });
+        const isBooking = this.isRoomBooking(roomId, {
+            start: start,
+            end: finish
+        }, date);
+        const key = `${date}-${this.id}-${room.id}-${start}-${finish}`;
 
-        if (!isBooking){
-            conn.execute("INSERT INTO bookings (bookingKey, room, date, time, booking, app) VALUES (?, ?, ?, ?, ?, ?)", [key, room.id, date, time.id, member.userid, this.id]).then(async (resp : any) => {
-                this.client?.pushMessage(member.userid, {type: "text", text: `จองห้อง ${room.label} เวลา ${formatTime(time.start)} - ${formatTime(time.end)} สำเร็จแล้ว`});
-                this.send("admin", {type: "text", text: `${member.label} ได้จองห้อง ${room.label} เวลา ${formatTime(time.start)} - ${formatTime(time.end)} แล้ว!`});
+        console.log(isBooking);
+
+
+        if (!isBooking) {
+            conn.execute(`INSERT INTO bookings (bookingKey, room, date, start, end, booking, app) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                key, room.id, date, start, finish, identifier, this.id
+            ]).then(async (resp: any) => {
+                this.client?.pushMessage(member.userid, { type: "text", text: `จองห้อง ${room.label} เวลา ${formatTime(start)} - ${formatTime(finish)} สำเร็จแล้ว` });
+                this.send("admin", { type: "text", text: `${member.label} ได้จองห้อง ${room.label} เวลา ${formatTime(start)} - ${formatTime(finish)} แล้ว!` });
 
                 this.bookings.push({
                     id: resp[0].insertId,
                     room: room.id,
-                    time: time.id,
+                    time: {
+                        start: start,
+                        end: finish
+                    },
                     date: date,
                     booking: identifier,
                     status: 0
                 })
             }).catch((err) => {
                 replyText("ไม่สามารถจองได้กรุณาลองใหม่อีกครั้งในภายหลัง")
-            }) 
-        }else{
+            })
+        } else {
             const bookingBy = this.getMember(isBooking.booking);
             replyText(`ห้องนี้ถูกจองโดย ${bookingBy?.label} แล้ว!`);
         }
+
     }
 
     public setMemberAttribute(identifier: string, attribute: string, value: any, updateDb: boolean): void {
@@ -246,7 +320,7 @@ export class App {
         }
     }
 
-    public addMember(member: member): Promise<void> {
+    public addMember(member: MemberData): Promise<void> {
         const userid = member.userid;
         const id = this.id;
         const label = member.label;
@@ -266,14 +340,14 @@ export class App {
         if (error) return Promise.resolve();
 
         return conn.execute(query, values).then(() => {
-            this.member.push(member);
+            this.member.push(new Member(member));
         });
     }
 
     public isMemberAllowed(identifier: string) {
         return (this.member.find((member) => member.userid == identifier)?.allowed) == 1 ? true : false;
     }
-    
+
     public isMemberIsAdmin(identifier: string) {
         return (this.member.find((member) => member.userid == identifier)?.isAdmin) == 1 ? true : false;
     }
@@ -328,11 +402,12 @@ export default {
             const app = new App(data.id, tokens);
 
             apps.push(app)
+
             return app;
         }
     },
 
-    gets: () : App[] => {
+    gets: (): App[] => {
         return apps
     },
 

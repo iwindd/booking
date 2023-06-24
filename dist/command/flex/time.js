@@ -1,7 +1,8 @@
-import { FlexContainer } from "@line/bot-sdk"
-import { usePostbackSession } from "../main"
-
-export const TimeFlexMessage = (title: string, label: string, status: string, date: string, postbackData: Object): FlexContainer => {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TimeFlexMessageWithButton = exports.TimeFlexMessage = void 0;
+const main_1 = require("../main");
+const TimeFlexMessage = (title, label, status, date, postbackData) => {
     return {
         "type": "bubble",
         "body": {
@@ -90,14 +91,11 @@ export const TimeFlexMessage = (title: string, label: string, status: string, da
                 }
             ]
         }
-    }
-}
-
-export const TimeFlexMessageWithButton = (title: string, label: string, status: string, date: string, postbackData: Object | undefined = undefined): any => {
-    return {
-        "type": "box",
-        "layout": "vertical",
-        "contents": [
+    };
+};
+exports.TimeFlexMessage = TimeFlexMessage;
+const TimeFlexMessageWithButton = (title, label, status, date, postbackData = undefined) => {
+    return Object.assign({ "type": "box", "layout": "vertical", "contents": [
             {
                 "type": "text",
                 "text": title,
@@ -178,17 +176,16 @@ export const TimeFlexMessageWithButton = (title: string, label: string, status: 
                     }
                 ]
             }
-        ],
-        ...(!postbackData ? {} : {
-            "action": {
-                "type": "postback",
-                "label": "จอง",
-                "data": JSON.stringify({
-                    "use": "booking_dialogs",
-                    "session": usePostbackSession(-1, 1, 5000),
-                    "data": postbackData
-                }),
-            }
-        })
-    }
-}
+        ] }, (!postbackData ? {} : {
+        "action": {
+            "type": "postback",
+            "label": "จอง",
+            "data": JSON.stringify({
+                "use": "booking_dialogs",
+                "session": (0, main_1.usePostbackSession)(-1, 1, 5000),
+                "data": postbackData
+            }),
+        }
+    }));
+};
+exports.TimeFlexMessageWithButton = TimeFlexMessageWithButton;

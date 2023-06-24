@@ -1,10 +1,14 @@
+import { WebhookEvent } from "@line/bot-sdk";
 import { postback } from "../typings";
+import { App } from "../../models/app";
 
-export const main : postback = {
+
+module.exports = {
     name: "request",
-    execute: async (event, client, app) => {
+    execute: async (event : WebhookEvent | any, app : App) => {
         const data = JSON.parse(event.postback.data).data;
         const MemberData = app.getMember(data.userId);
+        const client = app.client;
 
         switch (data.type) {
             case "1":
